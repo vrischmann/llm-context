@@ -46,7 +46,7 @@ go run main.go
 
 The tool generates output like this:
 
-```markdown
+````markdown
 I am providing the following files as context:
 
 ## File: main.go
@@ -62,7 +62,7 @@ func main() {
 ```yaml
 key: value
 ```
-```
+````
 
 ## License
 
