@@ -1,4 +1,4 @@
-module llm-context
+module github.com/vrischmann/llm-context
 
 go 1.25.7
 
