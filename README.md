@@ -34,10 +34,7 @@ go install github.com/vrischmann/llm-context@latest
 
 ```bash
 # Run from any directory
-./llm-context
-
-# Or run directly with Go
-go run main.go
+llm-context
 ```
 
 ## Example Output Format
