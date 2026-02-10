@@ -27,9 +27,7 @@ A command-line tool that helps you quickly gather file contents into a formatted
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/llm-context.git
-cd llm-context
-go build -o llm-context
+go install github.com/vrischmann/llm-context@latest
 ```
 
 ## Usage
