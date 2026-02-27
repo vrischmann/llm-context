@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,7 +13,17 @@ import (
 	"github.com/atotto/clipboard"
 )
 
+var version = "dev"
+
 func main() {
+	// Parse flags
+	versionFlag := flag.Bool("version", false, "Print version information")
+	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("llm-context version %s\n", version)
+		os.Exit(0)
+	}
 	// 1. Check for fzf dependency
 	if _, err := exec.LookPath("fzf"); err != nil {
 		fmt.Println("Error: fzf is not installed or not in your PATH")

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Format check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not properly formatted:"
+          gofmt -s -d .
+          exit 1
+        fi
+
+    - name: Vet
+      run: go vet ./...
+
+    - name: Run staticcheck
+      uses: dominikh/staticcheck-action@v1
+      with:
+        version: "latest"
+        install-go: false
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test with coverage
+      run: |
+        go test -v -timeout=10s -coverprofile=coverage.out ./...
+        go tool cover -html=coverage.out -o coverage.html
+
+    - name: Report coverage
+      run: |
+        COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+        echo "## Test Coverage Report 📊" >> $GITHUB_STEP_SUMMARY
+        echo "Total coverage: **$COVERAGE**" >> $GITHUB_STEP_SUMMARY
+        echo "Coverage report available in artifacts" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          coverage.html
+          coverage.out
+
+    - name: Test build works
+      run: |
+        go build -o llm-context
+        ./llm-context --version

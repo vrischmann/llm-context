@@ -1,0 +1,93 @@
+name: Release and update tap
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for GoReleaser's changelog generation
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.7'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-tap:
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    steps:
+      - name: Check out homebrew-tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: vrischmann/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update Homebrew formula for macOS and Linux
+        run: |
+          RELEASE_TAG="${{ github.ref_name }}"
+          VERSION=$(echo "$RELEASE_TAG" | sed 's/v//')
+
+          echo "Updating formula to version $VERSION ($RELEASE_TAG)"
+
+          curl -L "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/checksums.txt" -o checksums.txt
+
+          # Extract all four checksums for macOS and Linux
+          MACOS_AMD64_SHA=$(grep "darwin_amd64" checksums.txt | cut -d' ' -f1)
+          MACOS_ARM64_SHA=$(grep "darwin_arm64" checksums.txt | cut -d' ' -f1)
+          LINUX_AMD64_SHA=$(grep "linux_amd64" checksums.txt | cut -d' ' -f1)
+          LINUX_ARM64_SHA=$(grep "linux_arm64" checksums.txt | cut -d' ' -f1)
+
+          echo "macOS AMD64: $MACOS_AMD64_SHA"
+          echo "macOS ARM64: $MACOS_ARM64_SHA"
+          echo "Linux AMD64: $LINUX_AMD64_SHA"
+          echo "Linux ARM64: $LINUX_ARM64_SHA"
+
+          FORMULA_FILE="Formula/llm-context.rb"
+
+          # Update the global version number
+          sed -i "s/version \"[0-9.]*\"/version \"${VERSION}\"/" "$FORMULA_FILE"
+
+          # --- Update macOS block ---
+          sed -i "/on_macos do/,/else/ s|url \".*\"|url \"https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/llm-context_${VERSION}_darwin_amd64.tar.gz\"|" "$FORMULA_FILE"
+          sed -i "/on_macos do/,/else/ s/sha256 \"[a-f0-9]*\"/sha256 \"${MACOS_AMD64_SHA}\"/" "$FORMULA_FILE"
+          sed -i "/on_macos do/,/on_linux do/ { /else/,/end/ s|url \".*\"|url \"https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/llm-context_${VERSION}_darwin_arm64.tar.gz\"|" "$FORMULA_FILE"
+          sed -i "/on_macos do/,/on_linux do/ { /else/,/end/ s/sha256 \"[a-f0-9]*\"/sha256 \"${MACOS_ARM64_SHA}\"/; }" "$FORMULA_FILE"
+
+          # --- Update Linux block ---
+          sed -i "/on_linux do/,/elsif/ s|url \".*\"|url \"https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/llm-context_${VERSION}_linux_amd64.tar.gz\"|" "$FORMULA_FILE"
+          sed -i "/on_linux do/,/elsif/ s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_AMD64_SHA}\"/" "$FORMULA_FILE"
+          sed -i "/elsif/,/def install/ s|url \".*\"|url \"https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/llm-context_${VERSION}_linux_arm64.tar.gz\"|" "$FORMULA_FILE"
+          sed -i "/elsif/,/def install/ s/sha256 \"[a-f0-9]*\"/sha256 \"${LINUX_ARM64_SHA}\"/" "$FORMULA_FILE"
+
+          # Cleanup
+          rm checksums.txt
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          commit-message: "Update llm-context to version ${{ github.ref_name }}"
+          title: "Update llm-context to version ${{ github.ref_name }}"
+          body: |
+            This PR was automatically generated to update the `llm-context` formula to version `${{ github.ref_name }}`.
+          branch: "update/llm-context"
+          delete-branch: true
