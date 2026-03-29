@@ -55,7 +55,7 @@ func main() {
 
 	// 4. Build Context
 	var sb strings.Builder
-	sb.WriteString("I am providing the following files as context:\n\n")
+	sb.WriteString("I am providing the following files as context:\n\n<code>")
 
 	for _, file := range selectedFiles {
 		if file == "" {
@@ -72,11 +72,12 @@ func main() {
 			ext = "text"
 		}
 
-		sb.WriteString(fmt.Sprintf("## File: %s\n", file))
-		sb.WriteString(fmt.Sprintf("```%s\n", ext))
+		fmt.Fprintf(&sb, "## File: %s\n", file)
+		fmt.Fprintf(&sb, "```%s\n", ext)
 		sb.WriteString(string(content))
 		sb.WriteString("\n```\n\n")
 	}
+	sb.WriteString("</code>")
 
 	// 5. Copy to Clipboard
 	finalOutput := sb.String()
