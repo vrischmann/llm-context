@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -115,22 +114,7 @@ func getFileList() (string, error) {
 		}
 	}
 
-	// Strategy 3: Native Go Walk (Fallback)
-	var files []string
-	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		// Skip hidden directories like .git
-		if d.IsDir() && strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
-			return filepath.SkipDir
-		}
-		if !d.IsDir() {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return strings.Join(files, "\n"), err
+	return "", fmt.Errorf("either 'fd' or 'git' is required")
 }
 
 func runFzf(input string) ([]string, error) {
